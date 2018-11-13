@@ -142,3 +142,5 @@ def isOpenFromJqdata():
         if today == datestr:
             return True
     return False
+
+isOpenFromJqdata()

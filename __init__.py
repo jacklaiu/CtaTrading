@@ -9,8 +9,8 @@ pricePosi_top = 0
 pricePosi_bot = 4
 status = Status()
 tick = None
-strategyBase = MutilEMaStrategyBase(security=security, status=status, maxPosition=2, ctaTemplate=None, enableTrade=False, isTesting=True)
-times = util.getTimeSerial('2018-11-13 09:00:00', count=1*60*60, periodSec=30)
+strategyBase = MutilEMaStrategyBase(security=security, status=status, maxPosition=2, ctaTemplate=None, enableTrade=False)
+times = util.getTimeSerial('2018-11-05 22:00:00', count=1000*20, periodSec=12)
 for t in times:
     if strategyBase.startJudgeAndRefreshStatus(t):
         strategyBase.trade(None)

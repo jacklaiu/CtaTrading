@@ -4,15 +4,14 @@ import time
 import talib
 import numpy as np
 
-
 # jqdatasdk.auth('13268108673', 'king20110713')
 jqdatasdk.auth('13824472562', '472562')
-security = 'RB8888.XSGE'
+security = 'JM8888.XDCE'
 pricePosi_top = 0
 pricePosi_bot = 4
-start_date = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time() - 2592000 * 12))
-end_date = time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time() + 5 * 60))
-df = jqdatasdk.get_price(security=security, count=100, end_date=end_date, frequency='5m', fields=['close'])
+start_date = '2018-10-19 00:00:00'#time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time() - 2592000 * 12))
+end_date = '2018-10-26 00:00:00'#time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+df = jqdatasdk.get_price(security=security, start_date=start_date, end_date=end_date, frequency='5m', fields=['close'])
 close = [float(x) for x in df['close']]
 df['EMA5'] = talib.EMA(np.array(close), timeperiod=5)
 df['EMA10'] = talib.EMA(np.array(close), timeperiod=10)
@@ -20,8 +19,6 @@ df['EMA20'] = talib.EMA(np.array(close), timeperiod=20)
 df['EMA40'] = talib.EMA(np.array(close), timeperiod=40)
 df['EMA60'] = talib.EMA(np.array(close), timeperiod=60)
 indexList = df[df.EMA60 == df.EMA60].index.tolist()
-
-    #df = df.drop([indexList.__len__() - 1])
 
 pricePositions = []
 isHoldingShort = False

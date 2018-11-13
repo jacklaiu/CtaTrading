@@ -108,7 +108,7 @@ def runParentProcess():
         # 记录时间则需要启动子进程
         if recording and p is None:
             if util.isOpenFromJqdata() is False:
-                sleep(12 * 60 * 60)
+                sleep(3600)
                 continue
             le.info(u'启动子进程')
             p = multiprocessing.Process(target=runChildProcess)
@@ -127,7 +127,5 @@ def runParentProcess():
 
 
 if __name__ == '__main__':
-    runChildProcess()
-    
-    # 尽管同样实现了无人值守，但强烈建议每天启动时人工检查，为自己的PNL负责
-    #runParentProcess()
+    #runChildProcess()
+    runParentProcess()
