@@ -68,7 +68,7 @@ class MutilEMaStrategy(CtaTemplate):
         self.status = Status()
         self.tick = None
         self.strategyBase = MutilEMaStrategyBase(security=self.security, status=self.status,
-                                                 maxPosition=2, ctaTemplate=self, enableTrade=False)
+            maxPosition=2, ctaTemplate=self, enableTrade=False, isTesting=True)
 
     # ----------------------------------------------------------------------
     def onInit(self):

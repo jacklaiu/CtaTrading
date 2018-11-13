@@ -1,7 +1,17 @@
+# encoding: UTF-8
 import tushare as ts
 import time
 import datetime
 import jqdatasdk
+
+def getTimeSerial(starttime, count, periodSec):
+    ts = string2timestamp(starttime)
+    list = []
+    while count > 0:
+        ts = ts + periodSec
+        list.append(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts)))
+        count = count - 1
+    return list
 
 def getYMDHMS():
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -15,6 +25,20 @@ def getHMS():
 def getTimeStamp():
     millis = int(round(time.time() * 1000))
     return millis
+
+def string2timestamp(strValue):
+    try:
+        d = datetime.datetime.strptime(strValue, "%Y-%m-%d %H:%M:%S.%f")
+        t = d.timetuple()
+        timeStamp = int(time.mktime(t))
+        timeStamp = float(str(timeStamp) + str("%06d" % d.microsecond)) / 1000000
+        return timeStamp
+    except ValueError as e:
+        d = datetime.datetime.strptime(strValue, "%Y-%m-%d %H:%M:%S")
+        t = d.timetuple()
+        timeStamp = int(time.mktime(t))
+        timeStamp = float(str(timeStamp) + str("%06d" % d.microsecond)) / 1000000
+        return timeStamp
 
 def getFormatToday():
     return time.strftime("%Y-%m-%d", time.localtime())
