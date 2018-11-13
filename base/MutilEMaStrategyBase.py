@@ -48,7 +48,7 @@ class MutilEMaStrategyBase:
     def _shouldStartJudge(self):
         currentTimestamp = time.time() * 1000
         isTradingTime = self._isTradingTime()
-        frequencyLimitFlag = int(time.strftime('%M', time.localtime(time.time()))) % int(self.frequency[0:-1]) != 0
+        frequencyLimitFlag = int(time.strftime('%M', time.localtime(time.time()))) % int(self.frequency[0:-1]) == 0
         if isTradingTime is True and self.lastExeTime is None: # 第一次
             if frequencyLimitFlag is True:
                 self.lastExeTime = currentTimestamp
