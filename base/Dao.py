@@ -58,15 +58,6 @@ def select(sql, values):
     finally:
         connection.close()
 
-def updatePosition(security, duo_position, kong_position):
-    if security.find('.') != -1:
-        security = security[0:security.find('.')].lower()
-    count = select("select count(*) as count from t_position where security=%s", (security))[0]['count']
-    if count == 0:
-        update('insert into t_position(duo_position, kong_position, security) values(%s,%s,%s)', (str(duo_position), str(kong_position), security))
-    else:
-        update('update t_position set duo_position=%s, kong_position=%s where security=%s', (str(duo_position), str(kong_position), security))
-
 # 如果要重新开始，就在数据库把这个值置0
 def readDuoPosition(security):
     if security.find('.') != -1:

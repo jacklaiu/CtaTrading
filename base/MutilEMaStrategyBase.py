@@ -233,7 +233,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
+            
             return True
         return False
 
@@ -246,7 +246,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('开空' + str(self.maxPosition) + '手')
             self.kong_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
+            
             return True
         return False
 
@@ -260,7 +260,6 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             self.duo_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
         if preStatus == 'holdingshort' and status == 'waiting' and self.isWait() is False and self.isHoldingShort() is True:
             if self.enableTrade is True:
@@ -268,77 +267,72 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
-        if (preStatus == 'lockingbuy' or preStatus == 'lockingshort') and status == 'waiting' and self.isLock() is True and self.isWait() is False: # 双平
-            if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2))
-                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 双平
-            self.writeCtaLog('双平' + str(self.maxPosition / 2) + '手')
-            self.duo_position = 0
-            self.kong_position = 0
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
+        if (preStatus == 'lockingbuy' or preStatus == 'lockingshort') and status == 'waiting' and self.isWait() is True: # 双平
+            print
+            # if self.enableTrade is True:
+            #     self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2))
+            #     self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 双平
+            # self.writeCtaLog('双平' + str(self.maxPosition / 2) + '手')
+            # self.duo_position = 0
+            # self.kong_position = 0
+            # self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            
 
     def lock(self, tick):
         preStatus = self.status.preStatus
         status = self.status.status
 
-        if preStatus == 'holdingbuy' and status == 'lockingbuy' and self.isLock() is False and self.isHoldingBuy() is True: # 锁多仓
+        if preStatus == 'holdingbuy' and status == 'lockingbuy' and self.isHoldingBuy() is True: # 锁多仓
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
-                time.sleep(5)
-                self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 开空对冲
-            self.writeCtaLog('锁多' + str(self.maxPosition / 2) + '手')
-            self.duo_position = self.maxPosition / 2
-            self.kong_position = self.maxPosition / 2
+                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition))  # 平多
+                # self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
+                # time.sleep(5)
+                # self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 开空对冲
+            self.writeCtaLog('平' + str(self.maxPosition) + '手')
+            self.duo_position = 0
+            self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
-
-        if preStatus == 'holdingshort' and status == 'lockingshort' and self.isLock() is False and self.isHoldingShort() is True: # 锁空仓
+            
+        if preStatus == 'holdingshort' and status == 'lockingshort' and self.isHoldingShort() is True: # 锁空仓
             if self.enableTrade is True:
-                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
-                time.sleep(5)
-                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 开多对冲
-            self.writeCtaLog('锁空' + str(self.maxPosition / 2) + '手')
-            self.duo_position = self.maxPosition / 2
-            self.kong_position = self.maxPosition / 2
+                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition))  # 平空
+                # self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
+                # time.sleep(5)
+                # self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 开多对冲
+            self.writeCtaLog('平' + str(self.maxPosition) + '手')
+            self.duo_position = 0
+            self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
+            
 
     def unlock(self, tick):
         preStatus = self.status.preStatus
         status = self.status.status
-        if preStatus == 'lockingbuy' and status == 'holdingbuy' and self.isLock() is True:
+        if preStatus == 'lockingbuy' and status == 'holdingbuy' and self.isWait() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
-                time.sleep(5)
-                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 追开多
-            self.writeCtaLog('解多锁' + str(self.maxPosition / 2) + '手')
+                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition))
+                # self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
+                # time.sleep(5)
+                # self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 追开多
+            self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
             self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
-
-        if preStatus == 'lockingshort' and status == 'holdingshort' and self.isLock() is True:
+            
+        if preStatus == 'lockingshort' and status == 'holdingshort' and self.isWait() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
-                time.sleep(5)
-                self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 追开空
-            self.writeCtaLog('解空锁' + str(self.maxPosition / 2) + '手')
+                self.ctaTemplate.short(tick.upperLimit, int32(self.maxPosition))
+                # self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
+                # time.sleep(5)
+                # self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 追开空
+            self.writeCtaLog('开空' + str(self.maxPosition / 2) + '手')
             self.duo_position = 0
             self.kong_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.security, self.duo_position, self.kong_position)
+            
 
     def trade(self, tick):
-        # if self.isFirstTrade is True:
-        #     self.status.preStatus = 'waiting'
-        #     hadBuy = self.buy(tick)
-        #     hadShort = self.short(tick)
-        #     if hadBuy == True or hadShort == True:
-        #         self.isFirstTrade = False
-        # else:
         self.buy(tick)
         self.short(tick)
         self.closePosition(tick)
