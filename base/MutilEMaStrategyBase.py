@@ -30,10 +30,15 @@ class MutilEMaStrategyBase:
         self.security = security
         self.pricePositions = []
         self.maxPosition = int32(math.floor(dao.readMaxPosition(security) / 2) * 2) # 保证双数，可以完全锁仓。
-        # self.isFirstTrade = True
-
         self.duo_position = dao.readDuoPosition(security) # 多单持仓手数
         self.kong_position = dao.readKongPosition(security) # 空单持仓手数
+
+        self.writeCtaLog('jqdata账号：' + self.jqDataAccount)
+        self.writeCtaLog('合约代码：' + self.security)
+        self.writeCtaLog('多单持仓：' + self.duo_position)
+        self.writeCtaLog('空单持仓：' + self.kong_position)
+        self.writeCtaLog('最大持仓：' + self.maxPosition)
+        self.writeCtaLog('策略级别：' + self.frequency)
 
         self.dayStartTime = dayStartTime
         self.dayEndTime = dayEndTime
