@@ -8,6 +8,7 @@ import talib
 from Status import Status
 import math
 import Util as util
+import numpy.int32 as int32
 
 class MutilEMaStrategyBase:
 
@@ -218,7 +219,7 @@ class MutilEMaStrategyBase:
         status = self.status.status
         if preStatus == 'waiting' and status == 'holdingbuy' and self.isWait() is True and self.isHoldingBuy() is False:
             if self.enableTrade is True:
-                self.ctaTemplate.buy(tick.upperLimit, self.maxPosition)
+                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition))
             self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
@@ -230,7 +231,7 @@ class MutilEMaStrategyBase:
         status = self.status.status
         if preStatus == 'waiting' and status == 'holdingshort' and self.isWait() is True and self.isHoldingShort() is False:
             if self.enableTrade is True:
-                self.ctaTemplate.short(tick.lowerLimit, self.maxPosition)
+                self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition))
             self.writeCtaLog('开空' + str(self.maxPosition) + '手')
             self.kong_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
@@ -243,22 +244,22 @@ class MutilEMaStrategyBase:
 
         if preStatus == 'holdingbuy' and status == 'waiting' and self.isWait() is False and self.isHoldingBuy() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, self.maxPosition) # 平多
+                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition)) # 平多
             self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             self.duo_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
 
         if preStatus == 'holdingshort' and status == 'waiting' and self.isWait() is False and self.isHoldingShort() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.cover(tick.upperLimit, self.maxPosition) # 平空
+                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition)) # 平空
             self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
 
         if (preStatus == 'lockingbuy' or preStatus == 'lockingshort') and status == 'waiting' and self.isLock() is True and self.isWait() is False: # 双平
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, self.maxPosition / 2)
-                self.ctaTemplate.cover(tick.upperLimit, self.maxPosition / 2) # 双平
+                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2))
+                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 双平
             self.writeCtaLog('双平' + str(self.maxPosition / 2) + '手')
             self.duo_position = 0
             self.kong_position = 0
@@ -270,8 +271,8 @@ class MutilEMaStrategyBase:
 
         if preStatus == 'holdingbuy' and status == 'lockingbuy' and self.isLock() is False and self.isHoldingBuy() is True: # 锁多仓
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, self.maxPosition / 2) # 平多
-                self.ctaTemplate.short(tick.lowerLimit, self.maxPosition / 2) # 开空对冲
+                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
+                self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 开空对冲
             self.writeCtaLog('锁多' + str(self.maxPosition / 2) + '手')
             self.duo_position = self.maxPosition / 2
             self.kong_position = self.maxPosition / 2
@@ -279,8 +280,8 @@ class MutilEMaStrategyBase:
 
         if preStatus == 'holdingshort' and status == 'lockingshort' and self.isLock() is False and self.isHoldingShort() is True: # 锁空仓
             if self.enableTrade is True:
-                self.ctaTemplate.cover(tick.upperLimit, self.maxPosition / 2) # 平空
-                self.ctaTemplate.buy(tick.upperLimit, self.maxPosition / 2) # 开多对冲
+                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
+                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 开多对冲
             self.writeCtaLog('锁空' + str(self.maxPosition / 2) + '手')
             self.duo_position = self.maxPosition / 2
             self.kong_position = self.maxPosition / 2
@@ -291,16 +292,16 @@ class MutilEMaStrategyBase:
         status = self.status.status
         if preStatus == 'lockingbuy' and status == 'holdingbuy' and self.isLock() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.cover(tick.upperLimit, self.maxPosition / 2) # 平空
-                self.ctaTemplate.buy(tick.upperLimit, self.maxPosition / 2) # 追开多
+                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
+                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 追开多
             self.writeCtaLog('解多锁' + str(self.maxPosition / 2) + '手')
             self.duo_position = self.maxPosition
             self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
         if preStatus == 'lockingshort' and status == 'holdingshort' and self.isLock() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, self.maxPosition / 2) # 平多
-                self.ctaTemplate.short(tick.lowerLimit, self.maxPosition / 2) # 追开空
+                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
+                self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 追开空
             self.writeCtaLog('解空锁' + str(self.maxPosition / 2) + '手')
             self.duo_position = 0
             self.kong_position = self.maxPosition
