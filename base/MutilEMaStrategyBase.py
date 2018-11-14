@@ -29,16 +29,16 @@ class MutilEMaStrategyBase:
         self.lastExeTime = None
         self.security = security
         self.pricePositions = []
-        self.maxPosition = int32(math.floor(dao.readMaxPosition(security) / 2) * 2) # 保证双数，可以完全锁仓。
+        self.maxPosition = math.floor(dao.readMaxPosition(security) / 2) * 2 # 保证双数，可以完全锁仓。
         self.duo_position = dao.readDuoPosition(security) # 多单持仓手数
         self.kong_position = dao.readKongPosition(security) # 空单持仓手数
 
-        self.writeCtaLog('jqdata账号：' + self.jqDataAccount)
-        self.writeCtaLog('合约代码：' + self.security)
-        self.writeCtaLog('多单持仓：' + self.duo_position)
-        self.writeCtaLog('空单持仓：' + self.kong_position)
-        self.writeCtaLog('最大持仓：' + self.maxPosition)
-        self.writeCtaLog('策略级别：' + self.frequency)
+        self.writeCtaLog('jqdata账号：' + str(self.jqDataAccount))
+        self.writeCtaLog('合约代码：' + str(self.security))
+        self.writeCtaLog('多单持仓：' + str(self.duo_position))
+        self.writeCtaLog('空单持仓：' + str(self.kong_position))
+        self.writeCtaLog('最大持仓：' + str(self.maxPosition))
+        self.writeCtaLog('策略级别：' + str(self.frequency))
 
         self.dayStartTime = dayStartTime
         self.dayEndTime = dayEndTime
@@ -232,7 +232,7 @@ class MutilEMaStrategyBase:
                 self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition))
             self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             
             return True
         return False
@@ -245,7 +245,7 @@ class MutilEMaStrategyBase:
                 self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition))
             self.writeCtaLog('开空' + str(self.maxPosition) + '手')
             self.kong_position = self.maxPosition
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             
             return True
         return False
@@ -259,14 +259,14 @@ class MutilEMaStrategyBase:
                 self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition)) # 平多
             self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             self.duo_position = 0
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
 
         if preStatus == 'holdingshort' and status == 'waiting' and self.isWait() is False and self.isHoldingShort() is True:
             if self.enableTrade is True:
                 self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition)) # 平空
             self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.kong_position = 0
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
 
         if (preStatus == 'lockingbuy' or preStatus == 'lockingshort') and status == 'waiting' and self.isWait() is True: # 双平
             print
@@ -276,7 +276,7 @@ class MutilEMaStrategyBase:
             # self.writeCtaLog('双平' + str(self.maxPosition / 2) + '手')
             # self.duo_position = 0
             # self.kong_position = 0
-            # self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            # self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             
 
     def lock(self, tick):
@@ -292,7 +292,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('平' + str(self.maxPosition) + '手')
             self.duo_position = 0
             self.kong_position = 0
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             
         if preStatus == 'holdingshort' and status == 'lockingshort' and self.isHoldingShort() is True: # 锁空仓
             if self.enableTrade is True:
@@ -303,7 +303,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('平' + str(self.maxPosition) + '手')
             self.duo_position = 0
             self.kong_position = 0
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             
 
     def unlock(self, tick):
@@ -318,7 +318,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
             self.kong_position = 0
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             
         if preStatus == 'lockingshort' and status == 'holdingshort' and self.isWait() is True:
             if self.enableTrade is True:
@@ -329,7 +329,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('开空' + str(self.maxPosition / 2) + '手')
             self.duo_position = 0
             self.kong_position = self.maxPosition
-            self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             
 
     def trade(self, tick):
