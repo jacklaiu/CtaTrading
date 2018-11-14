@@ -3,7 +3,6 @@
 import jqdatasdk
 import numpy as np
 import time
-import datetime
 import talib
 from Status import Status
 import math
@@ -23,7 +22,7 @@ class MutilEMaStrategyBase:
         self.jqDataAccount = '13268108673'
         self.jqDataPassword = 'king20110713'
         self.frequency = '5m'
-        self.dataRow = 100
+        self.dataRow = 500
         self.pricePosi_top = 0
         self.pricePosi_bottom = 4
         self.lastExeTime = None
