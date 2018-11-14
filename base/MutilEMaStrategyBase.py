@@ -8,14 +8,15 @@ import talib
 from Status import Status
 import math
 import Util as util
-import numpy.int32 as int32
+from numpy import int32
 
 class MutilEMaStrategyBase:
 
     def __init__(self, security='RB1901.XSGE', status=Status(), ctaTemplate=None, maxPosition=2, enableTrade=False,
-                 dayStartTime='09:00:00', dayEndTime='11:31:00',
-                 noonStartTime='13:30:00', noonEndTime='15:01:00',
-                 nightStartTime='21:00:00', nightEndTime='23:01:00'):
+                 dayStartTime='09:00:00', dayEndTime='10:15:00',
+                 noonStartTime='10:30:00', noonEndTime='11:30:00',
+                 afternoonStartTime='13:30:00', afternoonEndTime='15:00:00',
+                 nightStartTime='21:00:00', nightEndTime='23:00:00'):
         self.enableTrade = enableTrade
         self.ctaTemplate = ctaTemplate
         self.status = status
@@ -38,6 +39,8 @@ class MutilEMaStrategyBase:
         self.dayEndTime = dayEndTime
         self.noonStartTime = noonStartTime
         self.noonEndTime = noonEndTime
+        self.afternoonStartTime = afternoonStartTime
+        self.afternoonEndTime = afternoonEndTime
         self.nightStartTime = nightStartTime
         self.nightEndTime = nightEndTime
 
@@ -48,6 +51,8 @@ class MutilEMaStrategyBase:
             ts = util.string2timestamp(currentTimeForTesting)
             now = time.strftime('%H:%M:%S', time.localtime(ts))
         if now >= self.dayStartTime and now <= self.dayEndTime:
+            return True
+        if now >= self.afternoonStartTime and now <= self.afternoonEndTime:
             return True
         if now >= self.noonStartTime and now <= self.noonEndTime:
             return True
@@ -272,6 +277,7 @@ class MutilEMaStrategyBase:
         if preStatus == 'holdingbuy' and status == 'lockingbuy' and self.isLock() is False and self.isHoldingBuy() is True: # 锁多仓
             if self.enableTrade is True:
                 self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
+                time.sleep(5)
                 self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 开空对冲
             self.writeCtaLog('锁多' + str(self.maxPosition / 2) + '手')
             self.duo_position = self.maxPosition / 2
@@ -281,6 +287,7 @@ class MutilEMaStrategyBase:
         if preStatus == 'holdingshort' and status == 'lockingshort' and self.isLock() is False and self.isHoldingShort() is True: # 锁空仓
             if self.enableTrade is True:
                 self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
+                time.sleep(5)
                 self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 开多对冲
             self.writeCtaLog('锁空' + str(self.maxPosition / 2) + '手')
             self.duo_position = self.maxPosition / 2
@@ -293,6 +300,7 @@ class MutilEMaStrategyBase:
         if preStatus == 'lockingbuy' and status == 'holdingbuy' and self.isLock() is True:
             if self.enableTrade is True:
                 self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition / 2)) # 平空
+                time.sleep(5)
                 self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition / 2)) # 追开多
             self.writeCtaLog('解多锁' + str(self.maxPosition / 2) + '手')
             self.duo_position = self.maxPosition
@@ -301,6 +309,7 @@ class MutilEMaStrategyBase:
         if preStatus == 'lockingshort' and status == 'holdingshort' and self.isLock() is True:
             if self.enableTrade is True:
                 self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
+                time.sleep(5)
                 self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition / 2)) # 追开空
             self.writeCtaLog('解空锁' + str(self.maxPosition / 2) + '手')
             self.duo_position = 0
