@@ -29,7 +29,7 @@ class MutilEMaStrategyBase:
         self.security = security
         self.pricePositions = []
         self.maxPosition = math.floor(maxPosition / 2) * 2 # 保证双数，可以完全锁仓。
-        self.isFirstTrade = True
+        # self.isFirstTrade = True
 
         self.duo_position = 0 # 多单持仓手数
         self.kong_position = 0 # 空单持仓手数
@@ -316,18 +316,18 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
 
     def trade(self, tick):
-        if self.isFirstTrade is True:
-            self.status.preStatus = 'waiting'
-            hadBuy = self.buy(tick)
-            hadShort = self.short(tick)
-            if hadBuy == True or hadShort == True:
-                self.isFirstTrade = False
-        else:
-            self.buy(tick)
-            self.short(tick)
-            self.closePosition(tick)
-            self.lock(tick)
-            self.unlock(tick)
+        # if self.isFirstTrade is True:
+        #     self.status.preStatus = 'waiting'
+        #     hadBuy = self.buy(tick)
+        #     hadShort = self.short(tick)
+        #     if hadBuy == True or hadShort == True:
+        #         self.isFirstTrade = False
+        # else:
+        self.buy(tick)
+        self.short(tick)
+        self.closePosition(tick)
+        self.lock(tick)
+        self.unlock(tick)
 
     def isLock(self):
         duo = self.duo_position
