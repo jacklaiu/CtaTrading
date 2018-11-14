@@ -1,5 +1,6 @@
 # encoding: UTF-8
 import pymysql.cursors
+from numpy import int32
 
 host='212.64.7.83'
 user='jacklaiu'
@@ -7,6 +8,7 @@ password='queue11235813'
 db='trading'
 charset='utf8mb4'
 cursorclass=pymysql.cursors.DictCursor
+
 
 # host='localhost'
 # user='root'
@@ -56,14 +58,44 @@ def select(sql, values):
     finally:
         connection.close()
 
-def updateDuoPosition(posi):
-    update('update t_position set duo_position=%s', (posi))
+def updatePosition(security, duo_position, kong_position):
+    if security.find('.') != -1:
+        security = security[0:security.find('.')].lower()
+    count = select("select count(*) as count from t_position where security=%s", (security))[0]['count']
+    if count == 0:
+        update('insert into t_position(duo_position, kong_position, security) values(%s,%s,%s)', (str(duo_position), str(kong_position), security))
+    else:
+        update('update t_position set duo_position=%s, kong_position=%s where security=%s', (str(duo_position), str(kong_position), security))
 
-def updateKongPosition(posi):
-    update('update t_position set kong_position=%s', (posi))
+# 如果要重新开始，就在数据库把这个值置0
+def readDuoPosition(security):
+    if security.find('.') != -1:
+        security = security[0:security.find('.')].lower()
+    if select("select count(*) as count from t_position where security=%s", (security))[0]['count'] == 0:
+        print u'数据库中找不到security对应的记录'
+        exit()
+    if security is None:
+        return
+    return int32(select('select duo_position from t_position where security=%s', (security))[0]['duo_position'])
 
-def readDuoPosition():
-    return select('select duo_position from t_position', ())
+# 如果要重新开始，就在数据库把这个值置0
+def readKongPosition(security):
+    if security.find('.') != -1:
+        security = security[0:security.find('.')].lower()
+    if select("select count(*) as count from t_position where security=%s", (security))[0]['count'] == 0:
+        print u'数据库中找不到security对应的记录'
+        exit()
+    if security is None:
+        return
+    return int32(select('select kong_position from t_position where security=%s', (security))[0]['kong_position'])
 
-ret = readDuoPosition()
-print
+# 这个值只会在数据库改
+def readMaxPosition(security):
+    if security.find('.') != -1:
+        security = security[0:security.find('.')].lower()
+    if select("select count(*) as count from t_position where security=%s", (security))[0]['count'] == 0:
+        print u'数据库中找不到security对应的记录'
+        exit()
+    if security is None:
+        return
+    return int32(select('select max_position from t_position where security=%s', (security))[0]['max_position'])

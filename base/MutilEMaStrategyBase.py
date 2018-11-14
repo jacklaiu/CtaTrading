@@ -8,10 +8,11 @@ from Status import Status
 import math
 import Util as util
 from numpy import int32
+import Dao as dao
 
 class MutilEMaStrategyBase:
 
-    def __init__(self, security='RB1901.XSGE', status=Status(), ctaTemplate=None, maxPosition=2, enableTrade=False,
+    def __init__(self, security='RB1901.XSGE', status=Status(), ctaTemplate=None, enableTrade=False,
                  dayStartTime='09:00:00', dayEndTime='10:15:00',
                  noonStartTime='10:30:00', noonEndTime='11:30:00',
                  afternoonStartTime='13:30:00', afternoonEndTime='15:00:00',
@@ -22,17 +23,17 @@ class MutilEMaStrategyBase:
         self.jqDataAccount = '13268108673'
         self.jqDataPassword = 'king20110713'
         self.frequency = '5m'
-        self.dataRow = 500
+        self.dataRow = 200
         self.pricePosi_top = 0
         self.pricePosi_bottom = 4
         self.lastExeTime = None
         self.security = security
         self.pricePositions = []
-        self.maxPosition = math.floor(maxPosition / 2) * 2 # 保证双数，可以完全锁仓。
+        self.maxPosition = int32(math.floor(dao.readMaxPosition(security) / 2) * 2) # 保证双数，可以完全锁仓。
         # self.isFirstTrade = True
 
-        self.duo_position = 0 # 多单持仓手数
-        self.kong_position = 0 # 空单持仓手数
+        self.duo_position = dao.readDuoPosition(security) # 多单持仓手数
+        self.kong_position = dao.readKongPosition(security) # 空单持仓手数
 
         self.dayStartTime = dayStartTime
         self.dayEndTime = dayEndTime
@@ -227,6 +228,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
             return True
         return False
 
@@ -239,6 +241,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('开空' + str(self.maxPosition) + '手')
             self.kong_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
             return True
         return False
 
@@ -252,6 +255,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             self.duo_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
         if preStatus == 'holdingshort' and status == 'waiting' and self.isWait() is False and self.isHoldingShort() is True:
             if self.enableTrade is True:
@@ -259,6 +263,7 @@ class MutilEMaStrategyBase:
             self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
         if (preStatus == 'lockingbuy' or preStatus == 'lockingshort') and status == 'waiting' and self.isLock() is True and self.isWait() is False: # 双平
             if self.enableTrade is True:
@@ -268,6 +273,7 @@ class MutilEMaStrategyBase:
             self.duo_position = 0
             self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
     def lock(self, tick):
         preStatus = self.status.preStatus
@@ -282,6 +288,7 @@ class MutilEMaStrategyBase:
             self.duo_position = self.maxPosition / 2
             self.kong_position = self.maxPosition / 2
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
         if preStatus == 'holdingshort' and status == 'lockingshort' and self.isLock() is False and self.isHoldingShort() is True: # 锁空仓
             if self.enableTrade is True:
@@ -292,6 +299,7 @@ class MutilEMaStrategyBase:
             self.duo_position = self.maxPosition / 2
             self.kong_position = self.maxPosition / 2
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
     def unlock(self, tick):
         preStatus = self.status.preStatus
@@ -305,6 +313,8 @@ class MutilEMaStrategyBase:
             self.duo_position = self.maxPosition
             self.kong_position = 0
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
+
         if preStatus == 'lockingshort' and status == 'holdingshort' and self.isLock() is True:
             if self.enableTrade is True:
                 self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition / 2)) # 平多
@@ -314,6 +324,7 @@ class MutilEMaStrategyBase:
             self.duo_position = 0
             self.kong_position = self.maxPosition
             self.writeCtaLog('多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
+            dao.updatePosition(self.security, self.duo_position, self.kong_position)
 
     def trade(self, tick):
         # if self.isFirstTrade is True:
