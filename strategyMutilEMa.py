@@ -39,15 +39,17 @@ class MutilEMaStrategy(CtaTemplate):
         self.bg = BarGenerator(self.onBar)
         self.am = ArrayManager()
 
-        self.security = 'RB1901.XSGE'
+        self.security = 'RB9999.XSGE'
+        self.frequency = '5m'
         self.pricePosi_top = 0
         self.pricePosi_bot = 4
         self.status = Status()
         self.tick = None
         self.strategyBase = MutilEMaStrategyBase(security=self.security,
                                                  status=self.status,
+                                                 frequency=self.frequency,
                                                  ctaTemplate=self,
-                                                 enableTrade=False
+                                                 enableTrade=True
                                                  )
     # ----------------------------------------------------------------------
     def onInit(self):

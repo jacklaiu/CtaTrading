@@ -133,8 +133,8 @@ def nextOpenDate(date, rightCount=1):
         index = index + 1
     return None
 
-def isOpenFromJqdata():
-    jqdatasdk.auth('13268108673', 'king20110713')
+def isOpenFromJqdata(jqDataAccount='13268108673', jqDataPassword='king20110713'):
+    jqdatasdk.auth(jqDataAccount, jqDataPassword)
     array = jqdatasdk.get_trade_days(start_date='2018-11-01', end_date='2019-12-31')
     today = time.strftime('%Y-%m-%d', time.localtime(time.time()))
     for date in array:
@@ -142,5 +142,3 @@ def isOpenFromJqdata():
         if today == datestr:
             return True
     return False
-
-isOpenFromJqdata()
