@@ -28,7 +28,7 @@ class MutilEMaStrategyBase:
         # self.jqDataAccount = '13824472562'
         # self.jqDataPassword = '472562'
         self.frequency = frequency
-        self.dataRow = 100
+        self.dataRow = 300
         self.pricePosi_top = 0
         self.pricePosi_bottom = 4
         self.lastExeTime = None
@@ -39,6 +39,8 @@ class MutilEMaStrategyBase:
         self.kong_position = dao.readKongPosition(security) # 空单持仓手数
 
         self.jm = jm(self)
+
+        self.lastestAbsK = None
 
         self.writeCtaLog('########################允许交易：' + str(self.enableTrade))
         self.writeCtaLog('########################合约代码：' + str(self.security))
@@ -125,7 +127,18 @@ class MutilEMaStrategyBase:
         self.df['EMA20'] = talib.EMA(np.array(close), timeperiod=20)
         self.df['EMA40'] = talib.EMA(np.array(close), timeperiod=40)
         self.df['EMA60'] = talib.EMA(np.array(close), timeperiod=60)
-        self.indexList = self.df[self.df.EMA60 == self.df.EMA60].index.tolist()
+        self.df['EMA120'] = talib.EMA(np.array(close), timeperiod=120)
+        self.df['EMA180'] = talib.EMA(np.array(close), timeperiod=180)
+        self.df['MA5'] = talib.MA(np.array(close), timeperiod=5)
+        self.df['MA10'] = talib.MA(np.array(close), timeperiod=10)
+        self.df['MA20'] = talib.MA(np.array(close), timeperiod=20)
+        self.df['MA40'] = talib.MA(np.array(close), timeperiod=40)
+        self.df['MA60'] = talib.MA(np.array(close), timeperiod=60)
+        self.df['MA120'] = talib.MA(np.array(close), timeperiod=120)
+        self.df['MA180'] = talib.MA(np.array(close), timeperiod=180)
+
+        self.indexList = self.df[self.df.EMA180 == self.df.EMA180].index.tolist()
+
         for index in self.indexList:
             ema5 = self.df.loc[index, 'EMA5']
             emas = sorted(
@@ -148,6 +161,7 @@ class MutilEMaStrategyBase:
         frequencyLimitFlag = int(time.strftime('%M', time.localtime(ts))) % int(self.frequency[0:-1]) == 0
         if frequencyLimitFlag is True:
             count = 0
+            self.lastestAbsK = None
             for pricePosi in self.pricePositions:
                 index = self.indexList[count]
                 self.now_ema5 = self.df['EMA5'][index]
@@ -155,16 +169,22 @@ class MutilEMaStrategyBase:
                 self.now_ema20 = self.df['EMA10'][index]
                 self.now_pricePosi = pricePosi
                 self.now_price = self.df.loc[index, 'close']
-                self.doRefresh(count)
+                self.doRefresh(count, nowTimeString)
                 count = count + 1
 
+        _emak60 = self.getEMAK(ematype='60', preCount=0) * 100
+        _emak120 = self.getEMAK(ematype='120', preCount=0) * 100
+        _mak120 = self.getMAK(matype='120', preCount=0) * 100
+        _emak60_120_dR = (abs(_emak60) - abs(_emak120)) / abs(_emak60)
         self.writeCtaLog('[' + nowTimeString + ']: preStatus: ' + str(self.status.preStatus)
                          + ' -> status(now): ' + self.status.status
-                         + ' -> lemak0: ' + str(self.getLifeEMAK(preCount=0))
-                         + ' -> pricePosi: ' + str(self.now_pricePosi)
-                         + ' -> holdingCount: ' + str(self.holdingCount))
+                         )
+                         # + ' -> emak60 : ' + str(_emak60)
+                         # + ' -> mak120: ' + str(_mak120)
+                         # + ' -> _emak60_120_dR: ' + str(_emak60_120_dR)
+                         # + ' -> pricePosi: ' + str(self.now_pricePosi))
 
-    def doRefresh(self, count):
+    def doRefresh(self, indexCount, nowTimeString):
         # lemak = 0
         # if count == self.indexList.__len__() - 1:
         #     lemak = self.getLifeEMAK(preCount=(self.indexList.__len__() - count - 1))
@@ -177,32 +197,41 @@ class MutilEMaStrategyBase:
         # status == waiting不会触发状态
         if self.status.status == 'holdingbuy' or self.status.status == 'holdingshort' or self.status.status == 'lockingbuy' or self.status.status == 'lockingshort':
 
-            if self.status.status == 'holdingbuy' or self.status.status == 'holdingshort':
-                self.holdingCount = self.holdingCount + 1
+            # if self.status.status == 'holdingbuy' or self.status.status == 'holdingshort':
+            #     self.holdingCount = self.holdingCount + 1
 
             if self.status.status == 'holdingbuy' or self.status.status == 'lockingbuy':
                 # 平仓点
-                if self.jm.judgeCloseBuy():
+                if self.now_pricePosi > self.pricePosi_top:
                     self.status.lockClose = 0
                     self.status.buyStartClose = 0
                     self.status.shortStartClose = 0
                     self.status.preStatus = self.status.status
                     self.status.status = 'waiting'
-                    self.holdingCount = 0
 
             elif self.status.status == 'holdingshort' or self.status.status == 'lockingshort':
                 # 平仓点
-                if self.jm.judgeCloseShort():
+                if self.now_pricePosi < self.pricePosi_bottom:
                     self.status.lockClose = 0
                     self.status.buyStartClose = 0
                     self.status.shortStartClose = 0
                     self.status.preStatus = self.status.status
                     self.status.status = 'waiting'
-                    self.holdingCount = 0
-
+        if nowTimeString == '2018-11-13 14:20:00' and indexCount == self.indexList.__len__() - 1:
+            print
+        emak60 = self.getEMAK(ematype='60', indexCount=indexCount) * 100
+        emak120 = self.getEMAK(ematype='120', indexCount=indexCount) * 100
+        mak5 = self.getMAK(matype='5', indexCount=indexCount) * 100
+        mak120 = self.getMAK(matype='120', indexCount=indexCount) * 100
+        mak180 = self.getMAK(matype='180', indexCount=indexCount) * 100
         # 开多仓
-        if self.jm.judgeOpenBuy() is True:
-            self.holdingCount = 0
+        if self.now_pricePosi == self.pricePosi_top \
+                and mak5 > 100 \
+                and emak60 > 0 \
+                and mak120 > 0 \
+                and mak180 > 0 \
+                and abs(emak60) > abs(emak120) \
+                and True:#(abs(emak60) - abs(emak120)) / abs(60) > 0.3:
             self.status.lockClose = 0
             self.status.buyStartClose = self.now_price
             self.status.shortStartClose = 0
@@ -210,20 +239,56 @@ class MutilEMaStrategyBase:
             self.status.status = 'holdingbuy'
 
         # 开空仓
-        if self.now_pricePosi == 4 and self.jm.judgeOpenShort():
-            self.holdingCount = 0
+        if self.now_pricePosi == self.pricePosi_bottom \
+                and mak5 < -100 \
+                and emak60 < 0 \
+                and mak120 < 0 \
+                and mak180 < 0 \
+                and abs(emak60) > abs(emak120) \
+                and True:#(abs(emak60) - abs(emak120)) / abs(60) > 0.3:
+
+            if nowTimeString == '2018-11-13 14:20:00' and indexCount == self.indexList.__len__() - 1:
+                print
             self.status.lockClose = 0
             self.status.buyStartClose = 0
             self.status.shortStartClose = self.now_price
             self.status.preStatus = self.status.status
             self.status.status = 'holdingshort'
 
-    def getLifeEMAK(self, preCount=0):
+    def markAbsLifeEMAK(self, indexCount):
+        self.lastestAbsK = abs(self.getLifeEMAK(indexCount=indexCount))
+
+    def clearAbsLifeEMAK(self):
+        self.lastestAbsK = 0
+
+    def getLifeEMAK(self, preCount=0, indexCount=None):
+
+        if indexCount is not None:
+            f = self.getEMAK(ematype='5', indexCount=indexCount)
+            t = self.getEMAK(ematype='10', indexCount=indexCount)
+            return f + t
+
         f = self.getEMAK(ematype='5', preCount=preCount)
         t = self.getEMAK(ematype='10', preCount=preCount)
         return f + t
 
-    def getEMADistance(self, ematypes=('5', '10', '20', '40', '60'), preCount=0):
+    def getEMADistance(self, ematypes=('5', '10', '20', '40', '60'), preCount=0, indexCount=None):
+
+        if indexCount is not None:
+            values = []
+            for ematype in ematypes:
+                values.append(float(self.df.loc[self.indexList[indexCount], 'EMA' + ematype]))
+            preV = None
+            firstV = None
+            distance = 0
+            for value in values:
+                if firstV is None:
+                    firstV = value
+                if preV is not None:
+                    distance = distance + abs(value - preV) / ematypes.__len__()
+                preV = value
+            return round(distance / ematypes.__len__() / firstV, 8) * 100
+
         values = []
         for ematype in ematypes:
             values.append(float(self.df.loc[self.indexList[-1 - preCount], 'EMA' + ematype]))
@@ -238,16 +303,41 @@ class MutilEMaStrategyBase:
             preV = value
         return round(distance / ematypes.__len__() / firstV, 8) * 100
 
-    def getEMAK(self, preCount=0, ematype='5'):
+    def getEMAK(self, preCount=0, ematype='5', indexCount=None):
+
+        if indexCount is not None:
+            ema_now = float(self.df.loc[self.indexList[indexCount], 'EMA' + ematype])
+            if indexCount == 0:
+                ema_pre = ema_now
+            else:
+                ema_pre = float(self.df.loc[self.indexList[indexCount - 1], 'EMA' + ematype])
+            banlance = ema_now / 1000
+            return (ema_now - ema_pre) / banlance * 3
+
         ema_1 = float(self.df.loc[self.indexList[-1 - preCount], 'EMA' + ematype])
         a = ema_1 / 1000
         ema_2 = float(self.df.loc[self.indexList[-2 - preCount], 'EMA' + ematype])
         return (ema_1 - ema_2) / a * 3
 
+    def getMAK(self, preCount=0, matype='5', indexCount=None):
 
+        if indexCount is not None:
+            ma_now = float(self.df.loc[self.indexList[indexCount], 'MA' + matype])
+            if indexCount == 0:
+                ma_pre = ma_now
+            else:
+                ma_pre = float(self.df.loc[self.indexList[indexCount - 1], 'MA' + matype])
+            banlance = ma_now / 1000
+            return (ma_now - ma_pre) / banlance * 3
 
+        ma_1 = float(self.df.loc[self.indexList[-1 - preCount], 'MA' + matype])
+        a = ma_1 / 1000
+        ma_2 = float(self.df.loc[self.indexList[-2 - preCount], 'MA' + matype])
+        return (ma_1 - ma_2) / a * 3
 
-
+    def getMAValue(self, matype='5', indexCount=None):
+        ma_now = float(self.df.loc[self.indexList[indexCount], 'MA' + matype])
+        return ma_now
 
     def buy(self, tick):
         status = self.status.status

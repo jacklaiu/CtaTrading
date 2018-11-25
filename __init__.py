@@ -11,7 +11,7 @@ status = Status()
 tick = None
 jqDataAccount = '13268108673'#'13268108673' '13824472562'
 jqDataPassword = 'king20110713'#'king20110713' '472562'
-frequency = '15m'
+frequency = '5m'
 strategyBase = MutilEMaStrategyBase(security=security, status=status, ctaTemplate=None, enableTrade=False,
                                     frequency=frequency,
                                     jqDataAccount=jqDataAccount, jqDataPassword=jqDataPassword)
