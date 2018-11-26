@@ -4,7 +4,7 @@ from base.MutilEMaStrategyBase import MutilEMaStrategyBase
 from base.Status import Status
 import base.Util as util
 
-security = 'RB9999.XSGE' #'FG9999.XZCE' 'RB9999.XSGE' 'JM9999.XDCE'
+security = 'HC9999.XSGE' #'FG9999.XZCE' 'RB9999.XSGE' 'JM9999.XDCE'
 pricePosi_top = 0
 pricePosi_bot = 4
 status = Status()
