@@ -5,44 +5,44 @@ import numpy as np
 import time
 import talib
 from Status import Status
-import math
 import Util as util
 from numpy import int32
 import Dao as dao
-from judgement.Master import Judgement_Master as jm
+import base.FutureTimeDict as fm
+import base.ProgramAndMe_ConnectionUnit as pamConn
+import base.MutilEMAStrategyBaseHelper as msbh
+import base.SmtpClient as smtpClient
 
 class MutilEMaStrategyBase:
 
-    def __init__(self, security='RB1901.XSGE', status=Status(), ctaTemplate=None, enableTrade=False,
-                 frequency='5m',
-                 dayStartTime='09:00:20', dayEndTime='10:14:00',
-                 noonStartTime='10:30:00', noonEndTime='11:29:00',
-                 afternoonStartTime='13:30:00', afternoonEndTime='14:59:00',
-                 nightStartTime='21:00:00', nightEndTime='22:59:00',
+    def __init__(self, security=None, status=Status(), ctaTemplate=None, controlRisk=None,
+                 enableTrade=False, enableBuy=True, enableShort=True, frequency=None,
+                 pricePosi_top = 0, pricePosi_bottom = 4, init_realOpenKonPrice = None, init_realOpenDuoPrice = None,
                  jqDataAccount='13268108673', jqDataPassword='king20110713'):
+        futureMsg = fm.getFutureMsg(security)
         self.enableTrade = enableTrade
+        self.enableBuy = enableBuy
+        self.enableShort = enableShort
         self.ctaTemplate = ctaTemplate
+        self.controlRisk = controlRisk
         self.status = status
         self.jqDataAccount = jqDataAccount
         self.jqDataPassword = jqDataPassword
-        # self.jqDataAccount = '13824472562'
-        # self.jqDataPassword = '472562'
         self.frequency = frequency
-        self.dataRow = 300
-        self.pricePosi_top = 0
-        self.pricePosi_bottom = 4
+
+        self.dataRow = 100
+        self.pricePosi_top = pricePosi_top
+        self.pricePosi_bottom = pricePosi_bottom
         self.lastExeTime = None
         self.security = security
         self.pricePositions = []
-        self.maxPosition = math.floor(dao.readMaxPosition(security) / 2) * 2 # 保证双数，可以完全锁仓。
+        self.maxPosition = dao.readMaxPosition(security)
         self.duo_position = dao.readDuoPosition(security) # 多单持仓手数
         self.kong_position = dao.readKongPosition(security) # 空单持仓手数
 
-        self.jm = jm(self)
-
-        self.lastestAbsK = None
-
         self.writeCtaLog('########################允许交易：' + str(self.enableTrade))
+        self.writeCtaLog('########################开多：' + str(self.enableBuy))
+        self.writeCtaLog('########################开空：' + str(self.enableShort))
         self.writeCtaLog('########################合约代码：' + str(self.security))
         self.writeCtaLog('########################多单持仓：' + str(self.duo_position))
         self.writeCtaLog('########################空单持仓：' + str(self.kong_position))
@@ -50,110 +50,91 @@ class MutilEMaStrategyBase:
         self.writeCtaLog('########################策略级别：' + str(self.frequency))
         self.writeCtaLog('########################jqdata账号：' + str(self.jqDataAccount))
 
-        self.dayStartTime = dayStartTime
-        self.dayEndTime = dayEndTime
-        self.noonStartTime = noonStartTime
-        self.noonEndTime = noonEndTime
-        self.afternoonStartTime = afternoonStartTime
-        self.afternoonEndTime = afternoonEndTime
-        self.nightStartTime = nightStartTime
-        self.nightEndTime = nightEndTime
+        self.dayStartTime = futureMsg['dayStartTime']
+        self.dayEndTime = futureMsg['dayEndTime']
+        self.noonStartTime = futureMsg['noonStartTime']
+        self.noonEndTime = futureMsg['noonEndTime']
+        self.afternoonStartTime = futureMsg['afternoonStartTime']
+        self.afternoonEndTime = futureMsg['afternoonEndTime']
+        try :
+            self.nightStartTime = futureMsg['nightStartTime']
+            self.nightEndTime = futureMsg['nightEndTime']
+        except:
+            self.nightStartTime = None
+            self.nightEndTime = None
 
-    def _isTradingTime(self, currentTimeForTesting):
-        if currentTimeForTesting is None:
-            now = time.strftime('%H:%M:%S',time.localtime(time.time()))
+        self.isInit = True
+        self.rate = 1
+        self.openPrice = None
+
+        #风控属性定义
+        self.realOpenKonPrice = None
+        self.realOpenDuoPrice = None
+        if init_realOpenKonPrice is not None: self.realOpenKonPrice = None
+        if init_realOpenDuoPrice is not None: self.realOpenDuoPrice = None
+
+    def getAdvancedData(self, nowTimeString):
+        newRow = None
+        newIndex = None
+        df = None
+        if self.isInit is True:
+            df = jqdatasdk.get_price(
+                security=self.security,
+                count=self.dataRow,
+                end_date=nowTimeString[0:nowTimeString.rindex(':') + 1] + '30',
+                frequency=self.frequency,
+                fields=['close', 'open', 'volume', 'high', 'low', 'money']
+            )
         else:
-            ts = util.string2timestamp(currentTimeForTesting)
-            now = time.strftime('%H:%M:%S', time.localtime(ts))
-        if now >= self.dayStartTime and now <= self.dayEndTime:
-            return True
-        if now >= self.afternoonStartTime and now <= self.afternoonEndTime:
-            return True
-        if now >= self.noonStartTime and now <= self.noonEndTime:
-            return True
-        if now >= self.nightStartTime and now <= self.nightEndTime:
-            return True
-        return False
+            newDf = jqdatasdk.get_price(
+                security=self.security,
+                count=1,
+                end_date=nowTimeString[0:nowTimeString.rindex(':') + 1] + '30',
+                frequency=self.frequency,
+                fields=['close', 'open', 'volume']
+            )
+            newIndex = newDf.index.tolist()[0]
+            newRow = newDf.loc[newIndex]
+        if newRow is not None:
+            df.loc[newIndex] = newRow
+        close = [float(x) for x in df['close']]
+        df['EMA5'] = talib.EMA(np.array(close), timeperiod=5)
+        df['EMA10'] = talib.EMA(np.array(close), timeperiod=10)
+        df['EMA20'] = talib.EMA(np.array(close), timeperiod=20)
+        df['EMA40'] = talib.EMA(np.array(close), timeperiod=40)
+        df['EMA60'] = talib.EMA(np.array(close), timeperiod=60)
+        df['MA5'] = talib.MA(np.array(close), timeperiod=5)
+        df['MA10'] = talib.MA(np.array(close), timeperiod=10)
+        df['MA20'] = talib.MA(np.array(close), timeperiod=20)
+        df['MA40'] = talib.MA(np.array(close), timeperiod=40)
+        df['MA60'] = talib.MA(np.array(close), timeperiod=60)
+        df.drop([df.index.tolist()[0]], inplace=True)
+        return df
 
-    def _shouldStartJudge(self, currentTimeForTesting=None):
-        currentTimestamp = time.time() * 1000
-        isTradingTime = self._isTradingTime(currentTimeForTesting)
-        if currentTimeForTesting is not None:
-            ts  = util.string2timestamp(currentTimeForTesting)
-            frequencyLimitFlag = int(time.strftime('%M', time.localtime(ts))) % int(self.frequency[0:-1]) == 0
-            currentTimestamp = util.string2timestamp(currentTimeForTesting) * 1000
-        else:
-            n = int(time.strftime('%M', time.localtime(currentTimestamp/1000))) % int(self.frequency[0:-1])
-            frequencyLimitFlag = n == 0
-
-        if isTradingTime is True and self.lastExeTime is None: # 第一次
-            if frequencyLimitFlag is True:
-                self.lastExeTime = currentTimestamp
-                return True
-            else:
-                return False
-
-        elif isTradingTime is True and currentTimestamp - self.lastExeTime > 66 * 1000: # 当前时间已经距离上次调用更新状态过了self.waittime分钟，可以再次调用
-            if frequencyLimitFlag is True:
-                self.lastExeTime = currentTimestamp
-                return True
-            else:
-                return False
-        return False
-
-    def startJudgeAndRefreshStatus(self, currentTimeForTesting=None):
-        self.pricePositions = []
-        self.pricePositions_ema10 = []
-        if self._shouldStartJudge(currentTimeForTesting) is False:
-            return False
-        if self.enableTrade is True:
-            time.sleep(19)
-        jqdatasdk.auth(self.jqDataAccount, self.jqDataPassword)
-        nowTimeString = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
-
-        if currentTimeForTesting is not None:
-            nowTimeString = currentTimeForTesting
-
-        self.df = jqdatasdk.get_price(
-            security=self.security,
-            count=self.dataRow,
-            end_date=nowTimeString[0:nowTimeString.rindex(':') + 1] + '30',
-            frequency=self.frequency,
-            fields=['close']
-        )
-        close = [float(x) for x in self.df['close']]
-        self.df['EMA5'] = talib.EMA(np.array(close), timeperiod=5)
-        self.df['EMA10'] = talib.EMA(np.array(close), timeperiod=10)
-        self.df['EMA20'] = talib.EMA(np.array(close), timeperiod=20)
-        self.df['EMA40'] = talib.EMA(np.array(close), timeperiod=40)
-        self.df['EMA60'] = talib.EMA(np.array(close), timeperiod=60)
-        self.df['EMA120'] = talib.EMA(np.array(close), timeperiod=120)
-        self.df['EMA180'] = talib.EMA(np.array(close), timeperiod=180)
-        self.df['MA5'] = talib.MA(np.array(close), timeperiod=5)
-        self.df['MA10'] = talib.MA(np.array(close), timeperiod=10)
-        self.df['MA20'] = talib.MA(np.array(close), timeperiod=20)
-        self.df['MA40'] = talib.MA(np.array(close), timeperiod=40)
-        self.df['MA60'] = talib.MA(np.array(close), timeperiod=60)
-        self.df['MA120'] = talib.MA(np.array(close), timeperiod=120)
-        self.df['MA180'] = talib.MA(np.array(close), timeperiod=180)
-
-        self.indexList = self.df[self.df.EMA180 == self.df.EMA180].index.tolist()
-
+    def getPricePosiArray(self):
+        pricePositions = []
         for index in self.indexList:
             ema5 = self.df.loc[index, 'EMA5']
             emas = sorted(
-                [ema5, self.df.loc[index, 'EMA10'], self.df.loc[index, 'EMA20'], self.df.loc[index, 'EMA40'], self.df.loc[index, 'EMA60']],
+                [ema5, self.df.loc[index, 'EMA10'], self.df.loc[index, 'EMA20'], self.df.loc[index, 'EMA40'],
+                 self.df.loc[index, 'EMA60']],
                 reverse=True)
             pricePosi = 0
             for ema in emas:
                 if ema == ema5:
                     break
                 pricePosi = pricePosi + 1
+            pricePositions.append(pricePosi)
+        return pricePositions
 
-            self.pricePositions.append(pricePosi)
+    def getIndexList(self):
+        return self.df[self.df.EMA60 == self.df.EMA60].index.tolist()
 
-        self.refreshStatus(nowTimeString)
-        return True
+    def getNowTimeString(self, currentTimeForTesting = None):
+        nowTimeString = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
+        if currentTimeForTesting is not None:
+            nowTimeString = currentTimeForTesting
+        return nowTimeString
 
     def refreshStatus(self, nowTimeString=None): # lockingbuy lockingshort holdingbuy holdingshort waiting
         # 保证最新的数据是符合frequency的，因为需要保证数据的连续性
@@ -173,65 +154,67 @@ class MutilEMaStrategyBase:
                 count = count + 1
 
         _emak60 = self.getEMAK(ematype='60', preCount=0) * 100
-        _emak120 = self.getEMAK(ematype='120', preCount=0) * 100
-        _mak120 = self.getMAK(matype='120', preCount=0) * 100
-        _emak60_120_dR = (abs(_emak60) - abs(_emak120)) / abs(_emak60)
         self.writeCtaLog('[' + nowTimeString + ']: preStatus: ' + str(self.status.preStatus)
                          + ' -> status(now): ' + self.status.status
+                         + ' -> va(now): ' + str(self.getVolumeArrow(indexCount=None))
+                         + ' -> ha(now): ' + str(self.getHighPriceArrow(indexCount=None))
+                         + ' -> la(now): ' + str(self.getLowPriceArrow(indexCount=None))
+                         + ' -> lemak(now): ' + str(self.getLifeEMAK(indexCount=None))
+                         + ' -> priceposi(now): ' + str(self.now_pricePosi)
                          )
-                         # + ' -> emak60 : ' + str(_emak60)
-                         # + ' -> mak120: ' + str(_mak120)
-                         # + ' -> _emak60_120_dR: ' + str(_emak60_120_dR)
-                         # + ' -> pricePosi: ' + str(self.now_pricePosi))
 
     def doRefresh(self, indexCount, nowTimeString):
-        # lemak = 0
-        # if count == self.indexList.__len__() - 1:
-        #     lemak = self.getLifeEMAK(preCount=(self.indexList.__len__() - count - 1))
-        # else:
-        #     if count == 0:
-        #         lemak = self.getLifeEMAK(preCount=(self.indexList.__len__() - count - 2))
-        #     else:
-        #         lemak = self.getLifeEMAK(preCount=(self.indexList.__len__() - count - 2))
-
         # status == waiting不会触发状态
-        if self.status.status == 'holdingbuy' or self.status.status == 'holdingshort' or self.status.status == 'lockingbuy' or self.status.status == 'lockingshort':
+        if self.status.status == 'holdingbuy' or self.status.status == 'holdingshort':
+            # 爆量通知
+            if indexCount == self.indexList.__len__() - 1 and \
+                    self.getVolumeArrow(indexCount=indexCount) > 10 and \
+                    (self.getLowPriceArrow(indexCount=indexCount) > 20 or self.getHighPriceArrow(indexCount=indexCount) > 20):
+                smtpClient.notifyVolumeUnusual(security=self.security)
+                time.sleep(1)
 
-            # if self.status.status == 'holdingbuy' or self.status.status == 'holdingshort':
-            #     self.holdingCount = self.holdingCount + 1
-
-            if self.status.status == 'holdingbuy' or self.status.status == 'lockingbuy':
+            if self.status.status == 'holdingbuy':
                 # 平仓点
-                if self.now_pricePosi > self.pricePosi_top:
+                if self.now_pricePosi != self.pricePosi_top:
                     self.status.lockClose = 0
                     self.status.buyStartClose = 0
                     self.status.shortStartClose = 0
                     self.status.preStatus = self.status.status
                     self.status.status = 'waiting'
+                    if indexCount == self.indexList.__len__() - 1 and self.openPrice is not None:
+                        smtpClient.notifyCloseDuo(security=self.security, currentTimeString=nowTimeString)
+                        self.rate = self.rate * (1+round((self.now_price - self.openPrice)/self.openPrice,4)) * (0.9996) * (0.9996)
+                        print "$$$$$$$$$$$$Rate:" + str(self.rate)
+                        time.sleep(1)
 
-            elif self.status.status == 'holdingshort' or self.status.status == 'lockingshort':
+            elif self.status.status == 'holdingshort':
                 # 平仓点
-                if self.now_pricePosi < self.pricePosi_bottom:
+                if self.now_pricePosi != self.pricePosi_bottom:
                     self.status.lockClose = 0
                     self.status.buyStartClose = 0
                     self.status.shortStartClose = 0
                     self.status.preStatus = self.status.status
                     self.status.status = 'waiting'
-        if nowTimeString == '2018-11-13 14:20:00' and indexCount == self.indexList.__len__() - 1:
-            print
-        emak60 = self.getEMAK(ematype='60', indexCount=indexCount) * 100
-        emak120 = self.getEMAK(ematype='120', indexCount=indexCount) * 100
-        mak5 = self.getMAK(matype='5', indexCount=indexCount) * 100
-        mak120 = self.getMAK(matype='120', indexCount=indexCount) * 100
-        mak180 = self.getMAK(matype='180', indexCount=indexCount) * 100
+                    if indexCount == self.indexList.__len__() - 1 and self.openPrice is not None:
+                        smtpClient.notifyCloseKon(security=self.security, currentTimeString=nowTimeString)
+                        self.rate = self.rate * (1 + round((self.openPrice - self.now_price) / self.now_price, 4)) * (0.9996) * (0.9996)
+                        print "$$$$$$$$$$$$Rate:" + str(self.rate)
+                        time.sleep(1)
+            return
+
+        # mak5 = self.getMAK(matype='5', indexCount=indexCount) * 100
+        lemk = self.getLifeEMAK(indexCount=indexCount)
+        va = self.getVolumeArrow(indexCount=indexCount)
+        edge_va = 7
         # 开多仓
-        if self.now_pricePosi == self.pricePosi_top \
-                and mak5 > 100 \
-                and emak60 > 0 \
-                and mak120 > 0 \
-                and mak180 > 0 \
-                and abs(emak60) > abs(emak120) \
-                and True:#(abs(emak60) - abs(emak120)) / abs(60) > 0.3:
+        if self.status.status == 'waiting' and \
+                self.now_pricePosi == self.pricePosi_top and \
+                self.enableBuy is True:
+            # half auto interaction with me
+            # -------------------------------------------------------------------------------------
+            if indexCount == self.indexList.__len__() - 1:
+                smtpClient.notifyOpenDuo(security=self.security, currentTimeString=nowTimeString)
+            # -------------------------------------------------------------------------------------
             self.status.lockClose = 0
             self.status.buyStartClose = self.now_price
             self.status.shortStartClose = 0
@@ -239,35 +222,96 @@ class MutilEMaStrategyBase:
             self.status.status = 'holdingbuy'
 
         # 开空仓
-        if self.now_pricePosi == self.pricePosi_bottom \
-                and mak5 < -100 \
-                and emak60 < 0 \
-                and mak120 < 0 \
-                and mak180 < 0 \
-                and abs(emak60) > abs(emak120) \
-                and True:#(abs(emak60) - abs(emak120)) / abs(60) > 0.3:
-
-            if nowTimeString == '2018-11-13 14:20:00' and indexCount == self.indexList.__len__() - 1:
-                print
+        if self.status.status == 'waiting' and \
+                self.now_pricePosi == self.pricePosi_bottom and \
+                self.enableShort is True:
+            # half auto interaction with me
+            # -------------------------------------------------------------------------------------
+            if indexCount == self.indexList.__len__() - 1:
+                smtpClient.notifyOpenKon(security=self.security, currentTimeString=nowTimeString)
+            # -------------------------------------------------------------------------------------
             self.status.lockClose = 0
             self.status.buyStartClose = 0
             self.status.shortStartClose = self.now_price
             self.status.preStatus = self.status.status
             self.status.status = 'holdingshort'
 
-    def markAbsLifeEMAK(self, indexCount):
-        self.lastestAbsK = abs(self.getLifeEMAK(indexCount=indexCount))
+    def getVolumeArrow(self, indexCount):
+        if indexCount is None:
+            indexList = self.indexList
+        else:
+            indexList = self.indexList[0:indexCount + 1]
+        volumes = []
+        for index in indexList:
+            v = self.df.loc[index, 'volume']
+            volumes.append(v)
+        count = 0
+        max = None
+        while count < indexList.__len__() - 1:
+            v = volumes[indexList.__len__() - count - 1]
+            if max is None:
+                max = v
+            elif v * 1.2 > max:
+                return count - 1
+            count = count + 1
+        return count - 1
 
-    def clearAbsLifeEMAK(self):
-        self.lastestAbsK = 0
+    def getHighPriceArrow(self, indexCount):
+        if indexCount is None:
+            indexList = self.indexList
+        else:
+            indexList = self.indexList[0:indexCount + 1]
+        volumes = []
+        for index in indexList:
+            v = self.df.loc[index, 'high']
+            volumes.append(v)
+        count = 0
+        max = None
+        while count < indexList.__len__() - 1:
+            v = volumes[indexList.__len__() - count - 1]
+            if max is None:
+                max = v
+            elif v > max:
+                return count - 1
+            count = count + 1
+        return count - 1
+
+    def getLowPriceArrow(self, indexCount):
+        if indexCount is None:
+            indexList = self.indexList
+        else:
+            indexList = self.indexList[0:indexCount + 1]
+        volumes = []
+        for index in indexList:
+            v = self.df.loc[index, 'low']
+            volumes.append(v)
+        count = 0
+        max = None
+        while count < indexList.__len__() - 1:
+            v = volumes[indexList.__len__() - count - 1]
+            if max is None:
+                max = v
+            elif v < max:
+                return count - 1
+            count = count + 1
+        return count - 1
+
+    def getRate(self, preCount=0, indexCount=None, nowTimeString=None):
+        if indexCount is not None:
+            open = float(self.df.loc[self.indexList[indexCount], 'open'])
+            close = float(self.df.loc[self.indexList[indexCount], 'close'])
+            rate = round((close - open) / open, 4) * 100
+            return rate
+        open = float(self.df.loc[self.indexList[-1-preCount], 'open'])
+        close = float(self.df.loc[self.indexList[-1-preCount], 'close'])
+        rate = round((close-open)/open, 4)*100
+        return rate
 
     def getLifeEMAK(self, preCount=0, indexCount=None):
-
         if indexCount is not None:
             f = self.getEMAK(ematype='5', indexCount=indexCount)
             t = self.getEMAK(ematype='10', indexCount=indexCount)
             return f + t
-
         f = self.getEMAK(ematype='5', preCount=preCount)
         t = self.getEMAK(ematype='10', preCount=preCount)
         return f + t
@@ -339,15 +383,41 @@ class MutilEMaStrategyBase:
         ma_now = float(self.df.loc[self.indexList[indexCount], 'MA' + matype])
         return ma_now
 
+    def startJudgeAndRefreshStatus(self, currentTimeForTesting=None):
+
+        isAllowStartJudge = msbh.shouldStartJudge(self, currentTimeForTesting)
+
+        if isAllowStartJudge is False:
+            return False
+        if self.enableTrade is True:
+            time.sleep(19)
+
+        jqdatasdk.auth(self.jqDataAccount, self.jqDataPassword)
+
+        nowTimeString = self.getNowTimeString(currentTimeForTesting=currentTimeForTesting)
+
+        self.df = self.getAdvancedData(nowTimeString=nowTimeString)
+
+        self.indexList = self.getIndexList()
+
+        self.pricePositions = self.getPricePosiArray()
+
+        self.refreshStatus(nowTimeString)
+
+        return True
+
     def buy(self, tick):
         status = self.status.status
         if status == 'holdingbuy' and self.isWait() is True and self.isHoldingBuy() is False:
             if self.enableTrade is True:
-                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition))
+                self.ctaTemplate.buy(tick.upperLimit*0.995, int32(self.maxPosition))
+
+            self.controlRisk.refreshOpenDuoPrice()
             self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
             self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             dao.updatePosition(self.duo_position, self.kong_position, self.security)
+            self.traded = True  # 在def trade方法复原为False
             return True
         return False
 
@@ -355,11 +425,13 @@ class MutilEMaStrategyBase:
         status = self.status.status
         if status == 'holdingshort' and self.isWait() is True and self.isHoldingShort() is False:
             if self.enableTrade is True:
-                self.ctaTemplate.short(tick.lowerLimit, int32(self.maxPosition))
+                self.ctaTemplate.short(tick.lowerLimit*0.995, int32(self.maxPosition))
+
             self.writeCtaLog('开空' + str(self.maxPosition) + '手')
             self.kong_position = self.maxPosition
             self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             dao.updatePosition(self.duo_position, self.kong_position, self.security)
+            self.traded = True  # 在def trade方法复原为False
             return True
         return False
 
@@ -367,82 +439,51 @@ class MutilEMaStrategyBase:
         status = self.status.status
         if status == 'waiting' and self.isWait() is False and self.isHoldingBuy() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition)) # 平多
+                self.ctaTemplate.sell(tick.lowerLimit*0.995, int32(self.maxPosition)) # 平多
+
             self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             self.duo_position = 0
             self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             dao.updatePosition(self.duo_position, self.kong_position, self.security)
+            self.traded = True  # 在def trade方法复原为False
 
         if status == 'waiting' and self.isWait() is False and self.isHoldingShort() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition)) # 平空
+                self.ctaTemplate.cover(tick.upperLimit*0.995, int32(self.maxPosition)) # 平空
+
             self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.kong_position = 0
             self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
             dao.updatePosition(self.duo_position, self.kong_position, self.security)
+            self.traded = True  # 在def trade方法复原为False
 
         if status == 'waiting' and self.isWait() is False: # 双平
             if self.duo_position > 0 and self.isHoldingBuy():
                 if self.enableTrade is True:
-                    self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition))  # 平多
+                    self.ctaTemplate.sell(tick.lowerLimit*0.995, int32(self.maxPosition))  # 平多
+
                 self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             if self.kong_position > 0 and self.isHoldingShort():
                 if self.enableTrade is True:
-                    self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition))  # 平空
+                    self.ctaTemplate.cover(tick.upperLimit*0.995, int32(self.maxPosition))  # 平空
+
                 self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.duo_position = 0
             self.kong_position = 0
             dao.updatePosition(0, 0, self.security)
-
-    def lock(self, tick):
-        preStatus = self.status.preStatus
-        status = self.status.status
-
-        if preStatus == 'holdingbuy' and status == 'lockingbuy' and self.isHoldingBuy() is True: # 锁多仓
-            if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit, int32(self.maxPosition))  # 平多
-            self.writeCtaLog('平' + str(self.maxPosition) + '手')
-            self.duo_position = 0
-            self.kong_position = 0
-            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.duo_position, self.kong_position, self.security)
-
-        if preStatus == 'holdingshort' and status == 'lockingshort' and self.isHoldingShort() is True: # 锁空仓
-            if self.enableTrade is True:
-                self.ctaTemplate.cover(tick.upperLimit, int32(self.maxPosition))  # 平空
-            self.writeCtaLog('平' + str(self.maxPosition) + '手')
-            self.duo_position = 0
-            self.kong_position = 0
-            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.duo_position, self.kong_position, self.security)
-
-    def unlock(self, tick):
-        preStatus = self.status.preStatus
-        status = self.status.status
-        if preStatus == 'lockingbuy' and status == 'holdingbuy' and self.isWait() is True:
-            if self.enableTrade is True:
-                self.ctaTemplate.buy(tick.upperLimit, int32(self.maxPosition))
-            self.writeCtaLog('开多' + str(self.maxPosition) + '手')
-            self.duo_position = self.maxPosition
-            self.kong_position = 0
-            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.duo_position, self.kong_position, self.security)
-
-        if preStatus == 'lockingshort' and status == 'holdingshort' and self.isWait() is True:
-            if self.enableTrade is True:
-                self.ctaTemplate.short(tick.upperLimit, int32(self.maxPosition))
-            self.writeCtaLog('开空' + str(self.maxPosition / 2) + '手')
-            self.duo_position = 0
-            self.kong_position = self.maxPosition
-            self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
-            dao.updatePosition(self.duo_position, self.kong_position, self.security)
+            self.traded = True  # 在def trade方法复原为False
 
     def trade(self, tick):
         self.buy(tick)
         self.short(tick)
         self.closePosition(tick)
-        #self.lock(tick)
-        #self.unlock(tick)
+        try:
+            if self.traded == True:
+                time.sleep(3)
+                smtpClient.notifyTrade(security=self.security)
+                self.traded = False
+        except:
+            return
 
     def isLock(self):
         duo = self.duo_position
@@ -479,6 +520,3 @@ class MutilEMaStrategyBase:
         else:
             self.ctaTemplate.writeCtaLog(u'' + content)
             print content
-
-
-

@@ -1,17 +1,1 @@
-[
-    {
-        "name": "MutilEMaStrategy_JD",
-        "className": "MutilEMaStrategy_JD",
-        "vtSymbol": "jd1901"
-    },
-    {
-        "name": "MutilEMaStrategy_JM",
-        "className": "MutilEMaStrategy_JM",
-        "vtSymbol": "jm1901"
-    },
-    {
-        "name": "MutilEMaStrategy_RB",
-        "className": "MutilEMaStrategy_RB",
-        "vtSymbol": "rb1901"
-    }
-]
+[{"className": "MutilEMaStrategy", "name": "MutilEMaStrategy", "vtSymbol": "jm1905"}]

@@ -10,11 +10,12 @@ from vnpy.trader.app.ctaStrategy.ctaTemplate import (CtaTemplate,
                                                      ArrayManager)
 from base.Status import Status
 from base.MutilEMaStrategyBase import MutilEMaStrategyBase
+import _1_MyTradingMsg as mtm
 
 ########################################################################
-class MutilEMaStrategy_RB(CtaTemplate):
+class MutilEMaStrategy(CtaTemplate):
     """双指数均线策略Demo"""
-    className = 'MutilEMaStrategy_RB'
+    className = 'MutilEMaStrategy'
     author = u'jacklaiu@qq.com'
     # 策略参数
     fastWindow = 5  # 快速均线参数
@@ -34,22 +35,23 @@ class MutilEMaStrategy_RB(CtaTemplate):
     # ----------------------------------------------------------------------
     def __init__(self, ctaEngine, setting):
 
-        super(MutilEMaStrategy_RB, self).__init__(ctaEngine, setting)
+        super(MutilEMaStrategy, self).__init__(ctaEngine, setting)
 
         self.bg = BarGenerator(self.onBar)
         self.am = ArrayManager()
 
-        self.security = 'RB9999.XSGE'
-        self.frequency = '5m'
+        self.frequency = mtm.frequency
         self.pricePosi_top = 0
         self.pricePosi_bot = 4
         self.status = Status()
         self.tick = None
-        self.strategyBase = MutilEMaStrategyBase(security=self.security,
+        self.strategyBase = MutilEMaStrategyBase(security=mtm.jqdata_security,
                                                  status=self.status,
-                                                 frequency=self.frequency,
+                                                 frequency=mtm.frequency,
                                                  ctaTemplate=self,
-                                                 enableTrade=False
+                                                 enableTrade=mtm.enableTrade,
+                                                 enableBuy=mtm.enableBuy,
+                                                 enableShort=mtm.enableShort
                                                  )
     # ----------------------------------------------------------------------
     def onInit(self):

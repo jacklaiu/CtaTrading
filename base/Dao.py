@@ -102,6 +102,20 @@ def updatePosition(duo_position, kong_position, security):
     update('update t_position set duo_position=%s, kong_position=%s where security=%s',
            (duo_position, kong_position, security))
 
+def updateAllPosition(duo=0, kon=0, max=1, security=None):
+    if security.find('.') != -1:
+        security = security[0:security.find('.')].lower()
+    max_position = str(max)
+    duo_position = str(duo)
+    kon_position = str(kon)
+    if select("select count(*) as count from t_position where security=%s", (security))[0]['count'] == 0:
+        update('insert t_position(duo_position, kong_position, max_position, security) values(%s,%s,%s,%s)',
+               (duo_position, kon_position, max_position, security))
+        return
+    update('delete from t_position where security = %s', (security))
+    update('insert t_position(duo_position, kong_position, max_position, security) values(%s,%s,%s,%s)',
+           (duo_position, kon_position, max_position, security))
+
 # duo_position = int32('320000')
 # kong_position = int32('16000')
 # updatePosition(duo_position, kong_position, 'rb1901')

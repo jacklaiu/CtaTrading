@@ -3,6 +3,68 @@ import tushare as ts
 import time
 import datetime
 import jqdatasdk
+import json
+import requests
+import base.Dao as dao
+
+def clearProperties():
+    f = open('c:\PythonProgramPropertyFolder\properties.txt', 'w')
+    f.write('')
+    f.close()
+
+def removeProperty(key):
+    f = open('c:\PythonProgramPropertyFolder\properties.txt', 'r')
+    ctn = f.read()
+    f.close()
+    if ctn is None or ctn == '':
+       return
+    else:
+        propertiesObj = json.loads(ctn)
+    v = propertiesObj.get(key)
+    if v is None or v == '':
+        return
+    del propertiesObj[key]
+    ctn = json.dumps(propertiesObj)
+    f = open('c:\PythonProgramPropertyFolder\properties.txt', 'w')
+    f.write(ctn)
+    f.close()
+
+def setProperty(key, value):
+    f = open('c:\PythonProgramPropertyFolder\properties.txt', 'r')
+    ctn = f.read()
+    f.close()
+    if ctn is None or ctn == '':
+        propertiesObj = {}
+    else:
+        propertiesObj = json.loads(ctn)
+        del propertiesObj[key]
+    propertiesObj.setdefault(key, value)
+    ctn = json.dumps(propertiesObj)
+    f = open('c:\PythonProgramPropertyFolder\properties.txt', 'w')
+    f.write(ctn)
+    f.close()
+
+def getProperty(key):
+    f = open('c:\PythonProgramPropertyFolder\properties.txt', 'r')
+    ctn = f.read()
+    if ctn is None or ctn == '':
+        propertiesObj = {}
+    else:
+        propertiesObj = json.loads(ctn)
+    return propertiesObj.get(key)
+
+def isWeekend(timeString=None):
+    if timeString is None: return None
+    wd = int(weekday(timeString))
+    if wd == 0 or wd == 6:
+        return True
+    else:
+        return False
+
+def weekday(timeString=None):
+    if timeString is None: return None
+    dayTime =(timeString)
+    return datetime.datetime.strptime(dayTime, '%Y-%m-%d %H:%M:%S').strftime("%w")
 
 def getTimeSerial(starttime, count, periodSec):
     ts = string2timestamp(starttime)
@@ -142,3 +204,12 @@ def isOpenFromJqdata(jqDataAccount='13268108673', jqDataPassword='king20110713')
         if today == datestr:
             return True
     return False
+
+def get_dominant_future(jqSecurity=None, jqDataAccount='13268108673', jqDataPassword='king20110713'):
+    jqdatasdk.auth(jqDataAccount, jqDataPassword)
+    return jqdatasdk.get_dominant_future(jqSecurity[0:2], getYMD())
+
+def get_CTA_setting_dominant_future(jqSecurity=None):
+    str = get_dominant_future(jqSecurity=jqSecurity)
+    return str[0:6].lower()
+

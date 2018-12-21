@@ -10,6 +10,8 @@ from vnpy.trader.app.ctaStrategy.ctaTemplate import (CtaTemplate,
                                                      ArrayManager)
 from base.Status import Status
 from base.MutilEMaStrategyBase import MutilEMaStrategyBase
+from base.RiskControl import ControlRisk
+import _1_MyTradingMsg as mtm
 
 ########################################################################
 class MutilEMaStrategy(CtaTemplate):
@@ -39,17 +41,27 @@ class MutilEMaStrategy(CtaTemplate):
         self.bg = BarGenerator(self.onBar)
         self.am = ArrayManager()
 
-        self.security = 'RB9999.XSGE'
-        self.frequency = '5m'
+        self.frequency = mtm.frequency
         self.pricePosi_top = 0
         self.pricePosi_bot = 4
         self.status = Status()
         self.tick = None
-        self.strategyBase = MutilEMaStrategyBase(security=self.security,
+
+        self.locking = False
+        self.lockActionToken = False
+        self.unlockActionToken = False
+
+        self.cr = ControlRisk(ctaEngine=self, maxPosition=mtm.max)
+
+        self.strategyBase = MutilEMaStrategyBase(security=mtm.jqdata_security,
                                                  status=self.status,
-                                                 frequency=self.frequency,
+                                                 frequency=mtm.frequency,
                                                  ctaTemplate=self,
-                                                 enableTrade=True
+                                                 enableTrade=mtm.enableTrade,
+                                                 enableBuy=mtm.enableBuy,
+                                                 enableShort=mtm.enableShort,
+                                                 init_realOpenDuoPrice=mtm.init_realOpenDuoPrice,
+                                                 init_realOpenKonPrice=mtm.init_realOpenKonPrice
                                                  )
     # ----------------------------------------------------------------------
     def onInit(self):
