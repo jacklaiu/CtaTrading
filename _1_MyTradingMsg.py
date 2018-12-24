@@ -3,6 +3,7 @@ import json
 import base.Dao as dao
 import base.Util as util
 import base.SmtpClient as smtp
+from base.RiskControl import ControlRisk
 
 strategy = 'MutilEMaStrategy'
 
@@ -13,15 +14,16 @@ strategy = 'MutilEMaStrategy'
 #A9999.XDCE 【豆一】
 #CF9999.XZCE 【郑州棉花】
 
-jqdata_security = 'JM9999.XDCE'
+jqdata_security = 'RB9999.XSGE'
 frequency = '5m'
 duo = 0
-kon = 1
+kon = 0
 max = 1
 enableTrade = True
 enableBuy = True
 enableShort = True
 smtp.enable = True
+
 init_realOpenKonPrice = None
 init_realOpenDuoPrice = None
 
@@ -32,6 +34,13 @@ def init():
     dao.updateAllPosition(duo=duo, kon=kon, max=max, security=jqdata_security)
     #（2） 更新CTA_setting.json
     vtSymbol = util.get_CTA_setting_dominant_future(jqSecurity=jqdata_security)
+    #（3）riskcontrol重设
+    controlRisk = ControlRisk(security=jqdata_security, ctaEngine=None)
+    controlRisk.releaseAll()
+    controlRisk.setOpenKonPrice(price=init_realOpenKonPrice)
+    controlRisk.setOpenDuoPrice(price=init_realOpenDuoPrice)
+    if init_realOpenDuoPrice is not None or init_realOpenKonPrice is not None:
+        controlRisk.activeLocking()
     with open('CTA_setting.json', 'w') as json_file:
         json_file.write(json.dumps(
             [

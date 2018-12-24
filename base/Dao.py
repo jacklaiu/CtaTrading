@@ -9,7 +9,6 @@ db='trading'
 charset='utf8mb4'
 cursorclass=pymysql.cursors.DictCursor
 
-
 # host='localhost'
 # user='root'
 # password='123456'
@@ -57,6 +56,8 @@ def select(sql, values):
             return result
     finally:
         connection.close()
+
+# t_position #####################################################################################################
 
 # 如果要重新开始，就在数据库把这个值置0
 def readDuoPosition(security):
@@ -116,7 +117,174 @@ def updateAllPosition(duo=0, kon=0, max=1, security=None):
     update('insert t_position(duo_position, kong_position, max_position, security) values(%s,%s,%s,%s)',
            (duo_position, kon_position, max_position, security))
 
-# duo_position = int32('320000')
-# kong_position = int32('16000')
-# updatePosition(duo_position, kong_position, 'rb1901')
+# END t_position #####################################################################################################
 
+# t_riskcontrol
+def _prepareSecurityName(security):
+    if security is None:
+        return None
+    if security.find('.') != -1:
+        return security[0:security.find('.')].lower()
+    else:
+        return security
+
+def _checkRiskControlRecordFalse2Exit(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    isExist = select("select count(*) as count from t_riskcontrol where security=%s", (security))[0]['count'] > 0
+    if isExist is False:
+        update('insert into t_riskcontrol(security) values(%s)', (security))
+    return isExist
+
+#realOpenKonPrice---------------------------------------------------------------
+def readRealOpenKonPrice(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    ret = select('select realOpenKonPrice from t_riskcontrol where security=%s', (security))[0]['realOpenKonPrice']
+    if ret is not None:
+        return float(ret)
+    else:
+        return None
+
+def setRealOpenKonPrice(security, price):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set realOpenKonPrice = %s where security = %s', (price, security))
+
+def releaseRealOpenKonPrice(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set realOpenKonPrice = %s where security = %s', (None, security))
+
+# setRealOpenKonPrice(security='rb9999', price='2345')
+# print readRealOpenKonPrice(security='rb9999')
+# releaseRealOpenKonPrice(security='rb9999')
+# print readRealOpenKonPrice(security='rb9999')
+
+#realOpenDuoPrice-----------------------------------------------------------------
+def readRealOpenDuoPrice(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    ret = select('select realOpenDuoPrice from t_riskcontrol where security=%s', (security))[0]['realOpenDuoPrice']
+    if ret is not None:
+        return float(ret)
+    else:
+        return None
+
+def setRealOpenDuoPrice(security, price):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set realOpenDuoPrice = %s where security = %s', (price, security))
+
+def releaseRealOpenDuoPrice(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set realOpenDuoPrice = %s where security = %s', (None, security))
+
+# setRealOpenDuoPrice(security='rb9999', price='2345')
+# print readRealOpenDuoPrice(security='rb9999')
+# releaseRealOpenDuoPrice(security='rb9999')
+# print readRealOpenDuoPrice(security='rb9999')
+
+#UnLockActionToken--------------------------------------------------------------------------------------
+def readLockActionToken(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    ret = select('select lockActionToken from t_riskcontrol where security=%s', (security))[0]['lockActionToken']
+    if ret is not None:
+        if ret == 1:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def releaseLockActionToken(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set lockActionToken = %s where security = %s', (None, security))
+
+def activeLockActionToken(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set lockActionToken = %s where security = %s', (1, security))
+
+# activeLockActionToken(security='rb9999')
+# print readLockActionToken(security='rb9999')
+# releaseLockActionToken(security='rb9999')
+# print readLockActionToken(security='rb9999')
+
+#unlockActionToken--------------------------------------------------------------------------------------
+def readUnLockActionToken(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    ret = select('select unlockActionToken from t_riskcontrol where security=%s', (security))[0]['unlockActionToken']
+    if ret is not None:
+        if ret == 1:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def releaseUnLockActionToken(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set unlockActionToken = %s where security = %s', (None, security))
+
+def activeUnLockActionToken(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set unlockActionToken = %s where security = %s', (1, security))
+
+# activeUnLockActionToken(security='rb9999')
+# print readUnLockActionToken(security='rb9999')
+# releaseUnLockActionToken(security='rb9999')
+# print readUnLockActionToken(security='rb9999')
+
+#locking--------------------------------------------------------------------------------------
+def readLocking(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    ret = select('select locking from t_riskcontrol where security=%s', (security))[0]['locking']
+    if ret is not None:
+        if ret == 1:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def releaseLocking(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set locking = %s where security = %s', (None, security))
+
+def activeLocking(security):
+    security = _prepareSecurityName(security=security)
+    if security is None: return
+    _checkRiskControlRecordFalse2Exit(security=security)
+    update('update t_riskcontrol set locking = %s where security = %s', (1, security))
+
+# activeLocking(security='rb9999')
+# print readLocking(security='rb9999')
+# releaseLocking(security='rb9999')
+# print readLocking(security='rb9999')
+
+def resetRiskControl(security):
+    update('delete from t_riskcontrol where security = %s', (security))
+    update('insert into t_riskcontrol(security) values(%s)', (security))

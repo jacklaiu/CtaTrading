@@ -10,9 +10,8 @@ from vnpy.trader.app.ctaStrategy.ctaTemplate import (CtaTemplate,
                                                      ArrayManager)
 from base.Status import Status
 from base.MutilEMaStrategyBase import MutilEMaStrategyBase
-from base.RiskControl import ControlRisk
 import _1_MyTradingMsg as mtm
-
+from base.RiskControl import ControlRisk
 ########################################################################
 class MutilEMaStrategy(CtaTemplate):
     """双指数均线策略Demo"""
@@ -51,7 +50,7 @@ class MutilEMaStrategy(CtaTemplate):
         self.lockActionToken = False
         self.unlockActionToken = False
 
-        self.cr = ControlRisk(ctaEngine=self, maxPosition=mtm.max)
+        self.controlRisk = ControlRisk(security=mtm.jqdata_security, ctaEngine=self)
 
         self.strategyBase = MutilEMaStrategyBase(security=mtm.jqdata_security,
                                                  status=self.status,
@@ -60,8 +59,7 @@ class MutilEMaStrategy(CtaTemplate):
                                                  enableTrade=mtm.enableTrade,
                                                  enableBuy=mtm.enableBuy,
                                                  enableShort=mtm.enableShort,
-                                                 init_realOpenDuoPrice=mtm.init_realOpenDuoPrice,
-                                                 init_realOpenKonPrice=mtm.init_realOpenKonPrice
+                                                 controlRisk=self.controlRisk
                                                  )
     # ----------------------------------------------------------------------
     def onInit(self):
@@ -89,6 +87,9 @@ class MutilEMaStrategy(CtaTemplate):
         if self.strategyBase.startJudgeAndRefreshStatus():
             self.strategyBase.trade(tick)
             self.putEvent()
+
+        # 风控OnTick
+        self.controlRisk.controlOnTick(tick)
 
     # ----------------------------------------------------------------------
     def onBar(self, bar):

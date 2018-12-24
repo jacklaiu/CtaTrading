@@ -17,7 +17,7 @@ class MutilEMaStrategyBase:
 
     def __init__(self, security=None, status=Status(), ctaTemplate=None, controlRisk=None,
                  enableTrade=False, enableBuy=True, enableShort=True, frequency=None,
-                 pricePosi_top = 0, pricePosi_bottom = 4, init_realOpenKonPrice = None, init_realOpenDuoPrice = None,
+                 pricePosi_top = 0, pricePosi_bottom = 4,
                  jqDataAccount='13268108673', jqDataPassword='king20110713'):
         futureMsg = fm.getFutureMsg(security)
         self.enableTrade = enableTrade
@@ -66,12 +66,6 @@ class MutilEMaStrategyBase:
         self.isInit = True
         self.rate = 1
         self.openPrice = None
-
-        #风控属性定义
-        self.realOpenKonPrice = None
-        self.realOpenDuoPrice = None
-        if init_realOpenKonPrice is not None: self.realOpenKonPrice = None
-        if init_realOpenDuoPrice is not None: self.realOpenDuoPrice = None
 
     def getAdvancedData(self, nowTimeString):
         newRow = None
@@ -411,8 +405,9 @@ class MutilEMaStrategyBase:
         if status == 'holdingbuy' and self.isWait() is True and self.isHoldingBuy() is False:
             if self.enableTrade is True:
                 self.ctaTemplate.buy(tick.upperLimit*0.995, int32(self.maxPosition))
+                self.controlRisk.releaseAll()
+                self.controlRisk.setOpenDuoPrice(tick.lastPrice)
 
-            self.controlRisk.refreshOpenDuoPrice()
             self.writeCtaLog('开多' + str(self.maxPosition) + '手')
             self.duo_position = self.maxPosition
             self.writeCtaLog('############################################多单持仓：' + str(self.duo_position) + ' 空单持仓：' + str(self.kong_position))
@@ -425,7 +420,9 @@ class MutilEMaStrategyBase:
         status = self.status.status
         if status == 'holdingshort' and self.isWait() is True and self.isHoldingShort() is False:
             if self.enableTrade is True:
-                self.ctaTemplate.short(tick.lowerLimit*0.995, int32(self.maxPosition))
+                self.ctaTemplate.short(tick.lowerLimit*1.005, int32(self.maxPosition))
+                self.controlRisk.releaseAll()
+                self.controlRisk.setOpenKonPrice(tick.lastPrice)
 
             self.writeCtaLog('开空' + str(self.maxPosition) + '手')
             self.kong_position = self.maxPosition
@@ -439,7 +436,8 @@ class MutilEMaStrategyBase:
         status = self.status.status
         if status == 'waiting' and self.isWait() is False and self.isHoldingBuy() is True:
             if self.enableTrade is True:
-                self.ctaTemplate.sell(tick.lowerLimit*0.995, int32(self.maxPosition)) # 平多
+                self.ctaTemplate.sell(tick.lowerLimit*1.005, int32(self.maxPosition)) # 平多
+                self.controlRisk.releaseAll()
 
             self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             self.duo_position = 0
@@ -450,6 +448,7 @@ class MutilEMaStrategyBase:
         if status == 'waiting' and self.isWait() is False and self.isHoldingShort() is True:
             if self.enableTrade is True:
                 self.ctaTemplate.cover(tick.upperLimit*0.995, int32(self.maxPosition)) # 平空
+                self.controlRisk.releaseAll()
 
             self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.kong_position = 0
@@ -460,12 +459,14 @@ class MutilEMaStrategyBase:
         if status == 'waiting' and self.isWait() is False: # 双平
             if self.duo_position > 0 and self.isHoldingBuy():
                 if self.enableTrade is True:
-                    self.ctaTemplate.sell(tick.lowerLimit*0.995, int32(self.maxPosition))  # 平多
+                    self.ctaTemplate.sell(tick.lowerLimit*1.005, int32(self.maxPosition))  # 平多
+                    self.controlRisk.releaseAll()
 
                 self.writeCtaLog('平多' + str(self.maxPosition) + '手')
             if self.kong_position > 0 and self.isHoldingShort():
                 if self.enableTrade is True:
                     self.ctaTemplate.cover(tick.upperLimit*0.995, int32(self.maxPosition))  # 平空
+                    self.controlRisk.releaseAll()
 
                 self.writeCtaLog('平空' + str(self.maxPosition) + '手')
             self.duo_position = 0
